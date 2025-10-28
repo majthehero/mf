@@ -13,9 +13,9 @@ _Maja's file manager_
 
 - load working dir
 - loop:
+  - draw screen
   - getcommand
   - update data
-  - draw screen
 
 - data
   - left : all data about the left screen - filebrowser
@@ -26,14 +26,14 @@ _Maja's file manager_
     - offset : start drawing fname list after offset files (scrolling)
 
   - right : all data about preview pane
-    - this is currently a bit undefined, probably will have to have more than one type of content
-
+    - text_lines : list of lines for text previews
+    - img_data : for viewing with viu
 
 ## TODO
 
 - [ ] scrolling - offset use
-- [ ] move to parent
-- [ ] move to child
-- [ ] txt preview
+- [x] move to parent
+- [x] move to child
+- [x] txt preview
 - [ ] img preview
 
