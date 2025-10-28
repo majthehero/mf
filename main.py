@@ -110,6 +110,8 @@ def main(std_scr):
         
         # quit
         if uin in ["q"]:
+            with open("/tmp/mf_q_dir", "w") as fd:
+                fd.write(data["left"]["path"])
             RUNNING = False
 
 
