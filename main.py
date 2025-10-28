@@ -3,6 +3,7 @@ import time
 import os
 import sys
 
+
 data = {
     "left": {
         "path" : os.getcwd(),
@@ -17,19 +18,19 @@ data = {
     }
 }
 
+
 def list_files(scr):
-    for i, fname in enumerate(data["left"]["fnames"]):
-        i -= data["left"]["offset"]
-        if i < 0: continue
+    for i, fname in enumerate(data["left"]["fnames"] [data["left"]["offset"]:data["left"]["offset"]+scr.getmaxyx()[0]-1]):
         if i >= scr.getmaxyx()[0]:
             break
         attr = 0
-        if i == data["left"]["idx"]:
+        if i == data["left"]["idx"]: # TODO: fix drawing with offset!
             attr |= curses.A_BOLD
         if i in data["left"]["selection"]:
             attr |= curses.A_UNDERLINE
         scr.addstr(i,1, fname, attr) 
         
+
 def draw_preview(scr):
     for i, line in enumerate(data["right"]["text_lines"]):
         if i >= scr.getmaxyx()[0] -1:
@@ -38,6 +39,8 @@ def draw_preview(scr):
 
 
 def main(std_scr):
+    RUNNING = True
+    
     curses.start_color()
 
     path = os.getcwd()
@@ -47,7 +50,7 @@ def main(std_scr):
     left_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, 0)
     right_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, curses.COLS // 2)
 
-    while True:
+    while RUNNING:
 
         std_scr.clear()
 
@@ -67,11 +70,11 @@ def main(std_scr):
         idx = data["left"]["idx"]
         if uin in ["KEY_UP", "k"]:
             idx = idx-1 if idx-1 > 0 else 0
-            if idx < data["left"]["offset"]:
+            if idx < 0:
                 data["left"]["offset"] -= 1
         if uin in ["KEY_DOWN", "j"]:
-            idx = idx+1 if idx+1 < len(list(os.scandir())) else idx 
-            if idx >= left_scr.getmaxyx()[0]:
+            idx = idx+1 if idx+1 < len(data["left"]["fnames"]) else idx 
+            if idx >= right_scr.getmaxyx()[0]:
                 data["left"]["offset"] += 1
         data["left"]["idx"] = idx
 
@@ -104,6 +107,11 @@ def main(std_scr):
             else:
                 with open(path) as fd:
                     data["right"]["text_lines"] = fd.readlines()
+        
+        # quit
+        if uin in ["q"]:
+            RUNNING = False
+
 
 curses.wrapper(main)
 
