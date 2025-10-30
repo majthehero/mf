@@ -7,7 +7,7 @@ import sys
 data = {
     "left": {
         "path" : os.getcwd(),
-        "fnames": [fd.name for fd in os.scandir()],
+        "fnames": [], 
         "idx": 0,
         "selection" : set(),
         "offset": 0,
@@ -15,67 +15,141 @@ data = {
     "right": {
         "text_lines": [],
         "offset": 0,
-    }
+    },
+    "status": [],
+    "options": {
+        "show_hidden": False,
+        "tight": False,
+    },
+    "scr": {
+        "std": None,
+        "left": None,
+        "right": None,
+    },
 }
 
 
-def list_files(scr):
-    for i, fname in enumerate(data["left"]["fnames"] [data["left"]["offset"]:data["left"]["offset"]+scr.getmaxyx()[0]-1]):
-        if i >= scr.getmaxyx()[0]:
-            break
-        attr = 0
-        if i == data["left"]["idx"]: # TODO: fix drawing with offset!
-            attr |= curses.A_BOLD
-        if i in data["left"]["selection"]:
-            attr |= curses.A_UNDERLINE
-        scr.addstr(i,1, fname, attr) 
-        
+def log_status(msg):
+    data["status"].append(msg)
 
-def draw_preview(scr):
+
+
+def get_files():
+    if data["options"]["show_hidden"]:
+        cond = lambda fn: True
+    else:
+        cond = lambda fn: not fn.startswith('.') 
+    fnames = list(filter(cond, [ fd.name for fd in os.scandir( data["left"]["path"] ) ] ))
+    fnames.sort()
+    return fnames
+
+
+def draw_file_list(): 
+    scr = data["scr"]["left"]
+    idx = data["left"]["idx"]
+    max_row = scr.getmaxyx()[0]
+    offset = 0
+
+    offset = idx
+    # if idx >= max_row:
+    #     offset = idx - max_row
+    log_status(f"off:{offset}")
+
+    for i in range(max_row):
+        attr = 0
+        if i + offset == idx: 
+            attr |= curses.A_BOLD
+            
+        if i + offset  in data["left"]["selection"]:
+            attr |= curses.A_UNDERLINE
+
+        if i + offset < len(data["left"]["fnames"]):
+            fname = data["left"]["fnames"][i + offset]
+            scr.addstr(i, 1, fname, attr) 
+
+
+def draw_preview():
+    scr = data["scr"]["right"]
     for i, line in enumerate(data["right"]["text_lines"]):
         if i >= scr.getmaxyx()[0] -1:
             break
         scr.addnstr(i, 0, data["right"]["text_lines"][i], scr.getmaxyx()[1]-2)
 
 
+def draw_status():
+    if data["options"]["tight"]:
+        pass # TODO tight layout single pane smaller status
+    else:
+        scr = data["scr"]["std"]
+        scr.addstr(0,1, f"-mf- {data["left"]["path"]}")
+        status = ""
+
+        i = 0
+        while len(status) < curses.COLS and i < len(data["status"]):
+            status += " | " + data["status"][-i]
+            i += 1
+        if status != "":
+            status += " |"
+        if len(status) > curses.COLS-4:
+            status = "..." + status[-(curses.COLS-4):]
+        scr.addstr(curses.LINES-1, 0, status)
+
+
 def main(std_scr):
-    RUNNING = True
-    
+    help_text = """
+    Maja's File Manager
+
+    Flags:
+    --help / -h / h - show this help text.
+    --show-all / -a / a - show all files, including hidden - those  starting with '.'.
+    """
+    for i in range(1, len(sys.argv)):
+        if sys.argv[i] in ["--help", "-h", "h"]:
+            print(help_text)
+        if sys.argv[i] in ["--show-all", "-a", "a"]:
+            data["options"]["show_hidden"] = True
+            log_status("h+")
+
+    # init screens
     curses.start_color()
-
-    path = os.getcwd()
-
-    std_scr.addstr(0,1, "-mf- {paht}")
-
+    data["scr"]["std"] = std_scr
     left_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, 0)
-    right_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, curses.COLS // 2)
+    data["scr"]["left"] = left_scr
+    if curses.COLS < 40:
+        log_status("t")
+        data["options"]["tight"] = True
+    else:
+        right_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, curses.COLS // 2)
+        data["scr"]["right"] = right_scr
 
+    # main loop
+    path = os.getcwd()
+    data["left"]["path"] = path
+    data["left"]["fnames"] = get_files()
+    uin = None
+    RUNNING = True
     while RUNNING:
 
+        # draw
         std_scr.clear()
+        draw_file_list()
+        draw_preview()
+        draw_status()
 
-        list_files(left_scr)
-
-        draw_preview(right_scr)
-
+        # refresh
         std_scr.refresh()
         left_scr.refresh()
         right_scr.refresh()
     
         # take input
         uin = std_scr.getkey()
-        std_scr.addstr(curses.LINES-1,1, uin)
 
         # UP / DOWN
         idx = data["left"]["idx"]
         if uin in ["KEY_UP", "k"]:
             idx = idx-1 if idx-1 > 0 else 0
-            if idx < 0:
-                data["left"]["offset"] -= 1
         if uin in ["KEY_DOWN", "j"]:
             idx = idx+1 if idx+1 < len(data["left"]["fnames"]) else idx 
-            if idx >= right_scr.getmaxyx()[0]:
-                data["left"]["offset"] += 1
         data["left"]["idx"] = idx
 
         # select
@@ -89,7 +163,7 @@ def main(std_scr):
         if uin in ["KEY_LEFT", "h"]:
             # move to parent
             data["left"]["path"] = os.path.dirname(data["left"]["path"])
-            data["left"]["fnames"] = [fd.name for fd in os.scandir(data["left"]["path"])]
+            data["left"]["fnames"] = get_files() 
             data["left"]["idx"] = 0
             data["left"]["selection"] = set()
             data["left"]["offset"] = 0
@@ -100,13 +174,17 @@ def main(std_scr):
             path = os.path.join(data["left"]["path"], data["left"]["fnames"][data["left"]["idx"]])
             if os.path.isdir(path):
                 data["left"]["path"] = path
-                data["left"]["fnames"] = [fd.name for fd in os.scandir(data["left"]["path"])]
+                data["left"]["fnames"] = get_files()
                 data["left"]["idx"] = 0
                 data["left"]["selection"] = set()
                 data["left"]["offset"] = 0
+            # if not dir show preview
             else:
                 with open(path) as fd:
-                    data["right"]["text_lines"] = fd.readlines()
+                    try:
+                        data["right"]["text_lines"] = fd.readlines()
+                    except UnicodeDecodeError as e:
+                        data["right"]["text_lines"] = ["Preview not supported for filetype."]
         
         # quit
         if uin in ["q"]:
@@ -114,6 +192,6 @@ def main(std_scr):
                 fd.write(data["left"]["path"])
             RUNNING = False
 
-
-curses.wrapper(main)
+if __name__ == "__main__":
+    curses.wrapper(main)
 

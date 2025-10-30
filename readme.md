@@ -8,6 +8,7 @@ _Maja's file manager_
 - l | [right] : move to child dir / preview file
 - j | [up] : move cursor up
 - k | [down] : move cursor down
+- r | [enter] : run cmd on file / selection - differentiate?
 
 ## Architecture
 
@@ -29,11 +30,15 @@ _Maja's file manager_
     - text_lines : list of lines for text previews
     - img_data : for viewing with viu
 
+  - options : flags etc
+    - show_hidden - false, flag a
+    
 ## TODO
 
-- [ ] scrolling - offset use
+- [ ] run operation on current file - <cmd> <selected files>, e.g. `[enter] vim [enter]` or `[r] vim [enter]` open file in vim 
+- [ ] img preview
+- [x] scrolling - offset use
 - [x] move to parent
 - [x] move to child
 - [x] txt preview
-- [ ] img preview
 
