@@ -2,14 +2,15 @@ import curses
 import time
 import os
 import sys
+import subprocess
 
 
 data = {
     "left": {
-        "path" : os.getcwd(),
-        "fnames": [], 
+        "path": os.getcwd(),
+        "fnames": [],
         "idx": 0,
-        "selection" : set(),
+        "selection": set(),
         "offset": 0,
     },
     "right": {
@@ -19,7 +20,6 @@ data = {
     "status": [],
     "options": {
         "show_hidden": False,
-        "tight": False,
     },
     "scr": {
         "std": None,
@@ -33,66 +33,76 @@ def log_status(msg):
     data["status"].append(msg)
 
 
-
 def get_files():
     if data["options"]["show_hidden"]:
         cond = lambda fn: True
     else:
-        cond = lambda fn: not fn.startswith('.') 
-    fnames = list(filter(cond, [ fd.name for fd in os.scandir( data["left"]["path"] ) ] ))
+        cond = lambda fn: not fn.startswith(".")
+    fnames = list(filter(cond, [fd.name for fd in os.scandir(data["left"]["path"])]))
     fnames.sort()
     return fnames
 
 
-def draw_file_list(): 
+def draw_file_list():
     scr = data["scr"]["left"]
     idx = data["left"]["idx"]
     max_row = scr.getmaxyx()[0]
     offset = 0
 
     offset = idx
-    # if idx >= max_row:
-    #     offset = idx - max_row
     log_status(f"off:{offset}")
 
     for i in range(max_row):
         attr = 0
-        if i + offset == idx: 
+        if i + offset == idx:
             attr |= curses.A_BOLD
-            
-        if i + offset  in data["left"]["selection"]:
+
+        if i + offset in data["left"]["selection"]:
             attr |= curses.A_UNDERLINE
 
         if i + offset < len(data["left"]["fnames"]):
             fname = data["left"]["fnames"][i + offset]
-            scr.addstr(i, 1, fname, attr) 
+            scr.addstr(i, 1, fname, attr)
 
 
 def draw_preview():
     scr = data["scr"]["right"]
-    for i, line in enumerate(data["right"]["text_lines"]):
-        if i >= scr.getmaxyx()[0] -1:
-            break
-        scr.addnstr(i, 0, data["right"]["text_lines"][i], scr.getmaxyx()[1]-2)
+    if data["right"]["text_lines"] == "viu":
+        subprocess.run(["tput", "cup", str(scr.getbegyx()[0]), str(scr.getbegyx()[1])])
+        subprocess.run(
+            [
+                "viu",
+                os.path.join(
+                    data["left"]["path"],
+                    data["left"]["fnames"][data["left"]["idx"]],
+                ),
+                "-h",
+                str(scr.getmaxyx()[0]),
+                "-w",
+                str(scr.getmaxyx()[1]),
+            ]
+        )
+    else:
+        for i, line in enumerate(data["right"]["text_lines"]):
+            if i >= scr.getmaxyx()[0] - 1:
+                break
+            scr.addnstr(i, 0, data["right"]["text_lines"][i], scr.getmaxyx()[1] - 2)
 
 
 def draw_status():
-    if data["options"]["tight"]:
-        pass # TODO tight layout single pane smaller status
-    else:
-        scr = data["scr"]["std"]
-        scr.addstr(0,1, f"-mf- {data["left"]["path"]}")
-        status = ""
+    scr = data["scr"]["std"]
+    scr.addstr(0, 1, f"-mf- {data["left"]["path"]}")
+    status = ""
 
-        i = 0
-        while len(status) < curses.COLS and i < len(data["status"]):
-            status += " | " + data["status"][-i]
-            i += 1
-        if status != "":
-            status += " |"
-        if len(status) > curses.COLS-4:
-            status = "..." + status[-(curses.COLS-4):]
-        scr.addstr(curses.LINES-1, 0, status)
+    i = 0
+    while len(status) < curses.COLS and i < len(data["status"]):
+        status += " | " + data["status"][-i]
+        i += 1
+    if status != "":
+        status += " |"
+    if len(status) > curses.COLS - 4:
+        status = "..." + status[-(curses.COLS - 4) :]
+    scr.addstr(curses.LINES - 1, 0, status)
 
 
 def main(std_scr):
@@ -115,12 +125,9 @@ def main(std_scr):
     data["scr"]["std"] = std_scr
     left_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, 0)
     data["scr"]["left"] = left_scr
-    if curses.COLS < 40:
-        log_status("t")
-        data["options"]["tight"] = True
-    else:
-        right_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, curses.COLS // 2)
-        data["scr"]["right"] = right_scr
+
+    right_scr = curses.newwin(curses.LINES - 2, curses.COLS // 2, 1, curses.COLS // 2)
+    data["scr"]["right"] = right_scr
 
     # main loop
     path = os.getcwd()
@@ -140,16 +147,16 @@ def main(std_scr):
         std_scr.refresh()
         left_scr.refresh()
         right_scr.refresh()
-    
+
         # take input
         uin = std_scr.getkey()
 
         # UP / DOWN
         idx = data["left"]["idx"]
         if uin in ["KEY_UP", "k"]:
-            idx = idx-1 if idx-1 > 0 else 0
+            idx = idx - 1 if idx - 1 > 0 else 0
         if uin in ["KEY_DOWN", "j"]:
-            idx = idx+1 if idx+1 < len(data["left"]["fnames"]) else idx 
+            idx = idx + 1 if idx + 1 < len(data["left"]["fnames"]) else idx
         data["left"]["idx"] = idx
 
         # select
@@ -163,15 +170,17 @@ def main(std_scr):
         if uin in ["KEY_LEFT", "h"]:
             # move to parent
             data["left"]["path"] = os.path.dirname(data["left"]["path"])
-            data["left"]["fnames"] = get_files() 
+            data["left"]["fnames"] = get_files()
             data["left"]["idx"] = 0
             data["left"]["selection"] = set()
             data["left"]["offset"] = 0
 
         # RIGHT
         if uin in ["KEY_RIGHT", "l"]:
-            # move to child 
-            path = os.path.join(data["left"]["path"], data["left"]["fnames"][data["left"]["idx"]])
+            # move to child
+            path = os.path.join(
+                data["left"]["path"], data["left"]["fnames"][data["left"]["idx"]]
+            )
             if os.path.isdir(path):
                 data["left"]["path"] = path
                 data["left"]["fnames"] = get_files()
@@ -184,14 +193,13 @@ def main(std_scr):
                     try:
                         data["right"]["text_lines"] = fd.readlines()
                     except UnicodeDecodeError as e:
-                        data["right"]["text_lines"] = ["Preview not supported for filetype."]
-        
+                        data["right"]["text_lines"] = "viu"
         # quit
         if uin in ["q"]:
             with open("/tmp/mf_q_dir", "w") as fd:
                 fd.write(data["left"]["path"])
             RUNNING = False
 
+
 if __name__ == "__main__":
     curses.wrapper(main)
-
