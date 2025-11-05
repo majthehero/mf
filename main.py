@@ -109,7 +109,10 @@ def main(std_scr):
     help_text = """
     Maja's File Manager
 
-    Flags:
+    Usage:
+    mf [OPTION...] [dir]
+
+    Options:
     --help / -h / h - show this help text.
     --show-all / -a / a - show all files, including hidden - those  starting with '.'.
     """
@@ -119,6 +122,10 @@ def main(std_scr):
         if sys.argv[i] in ["--show-all", "-a", "a"]:
             data["options"]["show_hidden"] = True
             log_status("h+")
+    if os.path.exists(sys.argv[-1]):
+        path = sys.argv[-1]
+    else:
+        path = os.getcwd()
 
     # init screens
     curses.start_color()
@@ -130,7 +137,6 @@ def main(std_scr):
     data["scr"]["right"] = right_scr
 
     # main loop
-    path = os.getcwd()
     data["left"]["path"] = path
     data["left"]["fnames"] = get_files()
     uin = None
