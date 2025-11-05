@@ -8,6 +8,7 @@ _Maja's file manager_
 - l | [right] : move to child dir / preview file
 - j | [up] : move cursor up
 - k | [down] : move cursor down
+- q : quit to current dir
 - r | [enter] : run cmd on file / selection - differentiate?
 
 ## Architecture
@@ -35,8 +36,10 @@ _Maja's file manager_
     
 ## TODO
 
+- [ ] improve img preview
 - [ ] run operation on current file - <cmd> <selected files>, e.g. `[enter] vim [enter]` or `[r] vim [enter]` open file in vim 
-- [ ] img preview
+- [x] open in custom dir
+- [x] img preview
 - [x] scrolling - offset use
 - [x] move to parent
 - [x] move to child
