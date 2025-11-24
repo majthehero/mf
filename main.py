@@ -42,12 +42,20 @@ def get_files():
     fnames.sort()
     return fnames
 
+def set_loff(n):
+    data["left"]["offset"] = n
 
 def draw_file_list():
     scr = data["scr"]["left"]
     idx = data["left"]["idx"]
-    max_row = scr.getmaxyx()[0]
-    offset = 0
+    R = scr.getmaxyx()[0]
+    F = len(data["left"]["fnames"])
+    
+    if idx < R-3:
+        da = 0
+    if 
+
+
 
     offset = idx
     log_status(f"off:{offset}")
